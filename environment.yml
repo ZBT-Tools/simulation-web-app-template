@@ -1,0 +1,28 @@
+name: dash_web_app
+channels:
+    - conda-forge
+dependencies:
+    - python>=3.10
+    - pandas
+    - numpy
+    - scipy
+    - matplotlib
+    - dash>=2.5.1
+    - dash-bootstrap-components>=1.2.0
+    - plotly
+    - glom
+    - diskcache
+    - celery
+    - redis
+    - pandarallel
+    - tqdm
+    - pip
+    - openpyxl
+    - pip:
+        - gunicorn
+        - dash-extensions>=0.1.1
+        - flask-caching>=1.10.1
+        - jsonpickle
+        - git+https://github.com/ZBT-Tools/data-transfer.git@master#egg=data_transfer
+
+
