@@ -780,7 +780,7 @@ def cbf_run_study(btn, inputs, inputs2, ids, ids2, settings, tabledata,
     # Read data from input fields and save input in dict (legacy)
     # / pd.DataDrame (one row with index "nominal")
     df_input = df.process_inputs(
-        inputs, inputs2, ids, ids2, dtype="DataFrame")
+        inputs, inputs2, ids, ids2, dtype=pd.DataFrame)
     df_input_backup = df_input.copy()
 
     # Create multiple parameter sets

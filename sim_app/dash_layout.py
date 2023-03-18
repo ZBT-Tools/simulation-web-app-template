@@ -267,7 +267,8 @@ def sub_frame(sub_frame_dict):
 
             div_child = [html.Div(children=sub_frame_dict['title'],
                                   className=f'title {bold}')]
-        div_child.extend([sub_frame(subframe) for subframe in sub_frame_dict['sub_frame_dicts']])
+        div_child.extend([sub_frame(subframe) for subframe
+                          in sub_frame_dict['sub_frame_dicts']])
 
         return html.Div(div_child, style=border, className=cname)
 
@@ -275,13 +276,13 @@ def sub_frame(sub_frame_dict):
         title = sub_frame_dict['title']
         show_title = sub_frame_dict.get('show_title', False)
 
-        size = {'size_label': sub_frame_dict['size_label']} if 'size_label' \
-                                                               in sub_frame_dict else {}
+        size = {'size_label': sub_frame_dict['size_label']} \
+            if 'size_label' in sub_frame_dict else {}
         size_u = {'size_unit': sub_frame_dict['size_unit']} \
             if 'size_unit' in sub_frame_dict else {}
 
-        spec = sub_frame_dict.get('specifier') if 'specifier' in \
-                                                  sub_frame_dict else ''
+        spec = sub_frame_dict.get('specifier') \
+            if 'specifier' in sub_frame_dict else ''
         id_container = \
             {'type': 'container', 'id': title, 'specifier': spec}
 

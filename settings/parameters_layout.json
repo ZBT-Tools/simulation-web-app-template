@@ -18,10 +18,7 @@
                 "label": "Cell Number:",
                 "number": 1,
                 "value": 10,
-                "sim_name": [
-                  "stack",
-                  "cell_number"
-                ],
+                "sim_name": ["stack", "cell_number"],
                 "dtype": "int",
                 "size_label": "xl",
                 "size_unit": "s",
@@ -31,10 +28,7 @@
                 "label": "Cell Length:",
                 "dimensions": "m",
                 "value": 0.1,
-                "sim_name": [
-                  "cell",
-                  "length"
-                ],
+                "sim_name": ["cell", "length"],
                 "dtype": "float",
                 "size_label": "xl",
                 "size_unit": "s",
@@ -58,18 +52,8 @@
                 "label": "BPP Thickness:",
                 "number": 2,
                 "value": 0.002,
-                "sim_name": [
-                  [
-                    "anode",
-                    "bpp",
-                    "thickness"
-                  ],
-                  [
-                    "cathode",
-                    "bpp",
-                    "thickness"
-                  ]
-                ],
+                "sim_name": [["anode", "bpp", "thickness"],
+                             ["cathode","bpp","thickness"]],
                 "dtype": "float",
                 "dimensions": "m",
                 "type": "EntrySet"
@@ -101,23 +85,9 @@
               {
                 "label": "Shape of Cross-Section:",
                 "number": 2,
-                "sim_name": [
-                  [
-                    "anode",
-                    "channel",
-                    "cross_sectional_shape"
-                  ],
-                  [
-                    "cathode",
-                    "channel",
-                    "cross_sectional_shape"
-                  ]
-                ],
-                "value": [
-                  "rectangular",
-                  "trapezoidal",
-                  "triangular"
-                ],
+                "sim_name": [["anode", "channel", "cross_sectional_shape"],
+                             ["cathode", "channel", "cross_sectional_shape"]],
+                "value": ["rectangular", "trapezoidal", "triangular"],
                 "specifier": "dropdown_activate_basewidth",
                 "type": "ComboboxSet",
                 "sticky": "WN"
@@ -125,84 +95,36 @@
               {
                 "label": "Channel Width:",
                 "number": 2,
-                "value": [
-                  0.001,
-                  0.001
-                ],
-                "sim_name": [
-                  [
-                    "anode",
-                    "channel",
-                    "width"
-                  ],
-                  [
-                    "cathode",
-                    "channel",
-                    "width"
-                  ]
-                ],
+                "value": [0.001, 0.001],
+                "sim_name": [["anode", "channel", "width"],
+                             ["cathode", "channel", "width"]],
                 "dtype": "float",
                 "dimensions": "m",
                 "type": "EntrySet",
-                "sticky": [
-                  "NW",
-                  "NWE"
-                ]
+                "sticky": ["NW", "NWE"]
               },
               {
                 "label": "Rib Width:",
                 "number": 2,
-                "value": [
-                  0.001,
-                  0.001
-                ],
-                "sim_name": [
-                  [
-                    "anode",
-                    "channel",
-                    "rib_width"
-                  ],
-                  [
-                    "cathode",
-                    "channel",
-                    "rib_width"
-                  ]
-                ],
+                "value": [0.001, 0.001],
+                "sim_name": [["anode", "channel", "rib_width" ],
+                             ["cathode", "channel", "rib_width"]],
                 "dtype": "float",
                 "dimensions": "m",
                 "type": "EntrySet",
-                "sticky": [
-                  "NW",
-                  "NWE"
-                ]
+                "sticky": ["NW", "NWE"]
               },
               {
                 "label": "Base Width:",
                 "number": 2,
-                "value": [
-                  0.001,
-                  0.001
-                ],
-                "sim_name": [
-                  [
-                    "anode",
-                    "channel",
-                    "base_width"
-                  ],
-                  [
-                    "cathode",
-                    "channel",
-                    "base_width"
-                  ]
-                ],
+                "value": [0.001, 0.001],
+                "sim_name": [["anode", "channel", "base_width"],
+                             ["cathode", "channel", "base_width"]],
                 "dtype": "float",
                 "dimensions": "m",
                 "type": "EntrySet",
                 "specifier": "disable_basewidth",
-                "sticky": [
-                  "NW",
-                  "NWE"
-                ]
+                "sticky": ["NW", "NWE"]
               }
             ],
             "size_label": "l",
@@ -285,25 +207,8 @@
                 "value": 60000.0,
                 "width": 5,
                 "sim_name": [
-                  [
-                    "anode",
-                    "bpp",
-                    "electrical_conductivity",
-                    [
-                      0,
-                      1
-                    ]
-                  ],
-                  [
-                    "cathode",
-                    "bpp",
-                    "electrical_conductivity",
-                    [
-                      2,
-                      3
-                    ]
-                  ]
-                ],
+                  ["anode", "bpp", "electrical_conductivity", [0, 1]],
+                  ["cathode", "bpp", "electrical_conductivity", [2, 3]]],
                 "dtype": "float",
                 "dimensions": "S/m",
                 "type": "EntrySet"
@@ -321,8 +226,6 @@
                 "show_title": false,
                 "font": "Arial 10 bold",
                 "sticky": "WEN",
-                "padx": 0,
-                "pady": 0,
                 "size_label": "l",
                 "size_unit": "l",
                 "widget_dicts": [
@@ -333,11 +236,7 @@
                       "membrane",
                       "type"
                     ],
-                    "value": [
-                      "Constant",
-                      "Springer",
-                      "Linear"
-                    ],
+                    "value": ["Constant", "Springer", "Linear"],
                     "type": "ComboboxSet",
                     "specifier": "dropdown_activate"
                   },
@@ -348,10 +247,7 @@
                       {
                         "label": "Ionic Conductivity:",
                         "value": 5.0,
-                        "sim_name": [
-                          "membrane",
-                          "ionic_conductivity"
-                        ],
+                        "sim_name": ["membrane", "ionic_conductivity"],
                         "dtype": "float",
                         "dimensions": "S/m",
                         "type": "EntrySet"
@@ -362,9 +258,7 @@
                         "sticky": "WENS"
                       }
                     ],
-                    "sticky": "WEN",
-                    "padx": 0,
-                    "pady": 0
+                    "sticky": "WEN"
                   },
                   {
                     "title": "Springer Ionic Conductivity",
@@ -381,8 +275,6 @@
                         "sticky": "WENS"
                       }
                     ],
-                    "padx": 0,
-                    "pady": 0,
                     "sticky": "WEN"
                   },
                   {
@@ -392,10 +284,7 @@
                       {
                         "label": "Constant Resistance Coefficient:",
                         "value": 4.3e-05,
-                        "sim_name": [
-                          "membrane",
-                          "basic_resistance"
-                        ],
+                        "sim_name": ["membrane", "basic_resistance"],
                         "dtype": "float",
                         "dimensions": "Ohm-m\u00b2",
                         "type": "EntrySet"
@@ -403,18 +292,13 @@
                       {
                         "label": "Linear Temperature Coefficient:",
                         "value": 7e-08,
-                        "sim_name": [
-                          "membrane",
-                          "temperature_coefficient"
-                        ],
+                        "sim_name": ["membrane", "temperature_coefficient"],
                         "dtype": "float",
                         "dimensions": "Ohm-m\u00b2/K",
                         "type": "EntrySet"
                       }
                     ],
-                    "sticky": "WEN",
-                    "padx": 0,
-                    "pady": 0
+                    "sticky": "WEN"
                   }
                 ]
               }
