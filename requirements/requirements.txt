@@ -13,5 +13,7 @@ werkzeug
 pandas
 openpyxl
 jsonpickle
+jsonnet-binary
 tqdm
+cantera
 data-transfer @ git+https://github.com/ZBT-Tools/data-transfer.git@master

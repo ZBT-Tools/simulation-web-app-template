@@ -15,16 +15,6 @@
             "font": "Arial 10 bold",
             "widget_dicts": [
               {
-                "label": "Cell Number:",
-                "number": 1,
-                "value": 10,
-                "sim_name": ["stack", "cell_number"],
-                "dtype": "int",
-                "size_label": "xl",
-                "size_unit": "s",
-                "type": "EntrySet"
-              },
-              {
                 "label": "Cell Length:",
                 "dimensions": "m",
                 "value": 0.1,

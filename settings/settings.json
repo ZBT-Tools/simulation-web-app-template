@@ -1,15 +1,12 @@
 {
-    "stack": {
-        "cell_number": 10
-    },
     "simulation": {
         "elements": 10
     },
     "cell": {
         "length": 0.5
     },
-    "membrane": {
-        "type": "Constant",
+    "simulation_model": {
+        "type": "Sinus",
         "ionic_conductivity": 15.0,
         "basic_resistance": 4.3e-05,
         "temperature_coefficient": 7e-08

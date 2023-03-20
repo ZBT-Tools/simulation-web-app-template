@@ -1,16 +1,13 @@
 import base64
-# import gc
 import io
 import os
 from dash import dash_table
 import numpy as np
 import pandas as pd
 import pickle
-import re
 import copy
 import sys
 import json
-from glom import glom
 import dash
 from dash_extensions.enrich import Output, Input, State, ALL, html, dcc, \
     ServersideOutput, ctx
@@ -21,13 +18,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 # import plotly.express as px
 
-from sim_app.dash_functions import create_settings
 from . import dash_functions as df, dash_layout as dl, dash_modal as dm
-from sim_app.dash_app import app
+from gui_app.dash_app import app
 
 import data_transfer
 
-from sim_app.study_functions import prepare_initial_curve_computation, \
+from gui_app.study_functions import prepare_initial_curve_computation, \
     prepare_curve_refinement_calculation
 from tqdm import tqdm
 from decimal import Decimal
@@ -41,7 +37,7 @@ tqdm.pandas()
 server = app.server
 
 app._favicon = 'logo-zbt.ico'
-app.title = 'PEMFC Model'
+app.title = 'Simulation Model'
 
 # Component Initialization & App layout
 # ----------------------------------------
@@ -50,20 +46,20 @@ app.title = 'PEMFC Model'
 with open(os.path.join('settings', 'parameters_layout.json')) as file:
     parameters_layout = json.load(file)
 
-
-# Process bar components
+# Progress bar components
 pbar = dbc.Progress(id='pbar')
 timer_progress = dcc.Interval(id='timer_progress',
                               interval=15000)
 
+# APP LAYOUT (Dash Components embedded in HTML Components (mainly Divs)
 app.layout = dbc.Container([
     dcc.Store(id="base_settings_data"),
     dcc.Store(id="input_data"),
     dcc.Store(id="df_input_data"),
-    dbc.Spinner(dcc.Store(id='result_data_store'), fullscreen=True,
+    dbc.Spinner(dcc.Store(id='df_result_data_store'), fullscreen=True,
                 spinner_class_name='loading_spinner',
                 fullscreen_class_name='loading_spinner_bg'),
-    dcc.Store(id='df_result_data_store'),
+    # dcc.Store(id='df_result_data_store'),
     dcc.Store(id='df_input_store'),
     dcc.Store(id='variation_parameter'),
 
@@ -71,12 +67,13 @@ app.layout = dbc.Container([
     # (Read available input parameters, create study table)
     html.Div(id="initial_dummy"),
 
-    # empty Div to trigger javascript file for graph resizing
+    # Empty Div to trigger javascript file for graph resizing
     html.Div(id="output-clientside"),
-    # modal for any warning
+    # Modal for any warning
     dm.create_modal(),
 
-    html.Div([  # HEADER (Header row, logo and title)
+    # HEADER ROW DIVS (logo and title)
+    html.Div([
         html.Div(  # Logo
             html.Div(
                 html.Img(
@@ -94,7 +91,7 @@ app.layout = dbc.Container([
         ),
         html.Div(  # Title
             html.Div(
-                html.H3("Fuel Cell Stack Model",
+                html.H3("Simulation Model",
                         style={"margin": "auto",
                                "min-height": "47px",
                                "font-weight": "bold",
@@ -115,8 +112,10 @@ app.layout = dbc.Container([
         className='row'
     ),
 
-    html.Div([  # MIDDLE
-        html.Div([  # LEFT MIDDLE / (Menu Column)
+    # MAIN ROW DIVS
+    html.Div([
+        # LEFT COLUMN DIVS (Parameter Inputs)
+        html.Div([
             # Menu Tabs
             html.Div([
                 dl.tab_container(parameters_layout)],
@@ -205,7 +204,7 @@ app.layout = dbc.Container([
                 html.Div(
                     dbc.Checklist(
                         id="check_calc_curve",
-                        options=[{'label': 'Calc. Current-Voltage Curve',
+                        options=[{'label': 'Calc. Parameter Variation Curve',
                                   'value': 'calc_curve'}])),
                 html.Div(
                     dbc.RadioItems(
@@ -233,7 +232,7 @@ app.layout = dbc.Container([
             html.Div([  # LEFT MIDDLE: Buttons
                 html.Div([
                     html.Div(
-                        [html.Button('Plot', id='btn_plot',
+                        [html.Button('Plot', id='btn_plot_curve',
                                      className='settings_button',
                                      style={'display': 'flex'}),
                          html.Button('Save Results', id='btn_save_res',
@@ -277,13 +276,8 @@ app.layout = dbc.Container([
                     className='neat-spacing')], style={'flex': '1'},
                 id='progress_bar', className='pretty_container')],
             id="left-column", className='col-12 col-lg-4 mb-2'),
-        html.Div([  # RIGHT MIDDLE  (Result Column)
-            html.Div(
-                [html.Div('Current-Voltage Curve', className='title'),
-                 dcc.Graph(id='curve_graph')],
-                id='div_curve_graph',
-                className='pretty_container',
-                style={'overflow': 'auto'}),
+        # RIGHT COLUMN (Result display)
+        html.Div([
             html.Div(
                 [html.Div('Global Results (for Study only first dataset shown)',
                           className='title'),
@@ -313,28 +307,27 @@ app.layout = dbc.Container([
                            'flex-direction': 'row',
                            'flex-wrap': 'wrap',
                            'justify-content': 'left'}),
-                # RIGHT MIDDLE BOTTOM
                 dbc.Spinner(dcc.Graph(id="heatmap_graph"),
                             spinner_class_name='loading_spinner',
                             fullscreen_class_name='loading_spinner_bg')],
                 id='heatmap_container',
                 className='graph pretty_container'),
             html.Div([
-                html.Div('Plots', className='title'),
+                html.Div('Single Simulation Plots', className='title'),
                 html.Div(
                     [html.Div(
                         dcc.Dropdown(
-                            id='dropdown_line',
+                            id='dropdown_line_single',
                             placeholder='Select Variable',
                             className='dropdown_input'),
-                        id='div_dropdown_line',
+                        id='div_dropdown_line_single',
                         # style={'padding': '1px', 'min-width': '200px'}
                     ),
                         html.Div(
-                            dcc.Dropdown(id='dropdown_line2',
+                            dcc.Dropdown(id='dropdown_line_subset_single',
                                          className='dropdown_input',
                                          style={'visibility': 'hidden'}),
-                            id='div_dropdown_line_2',
+                            id='div_dropdown_line_subset_single',
                             # style={'padding': '1px', 'min-width': '200px'}
                         )],
                     style={'display': 'flex', 'flex-direction': 'row',
@@ -343,52 +336,85 @@ app.layout = dbc.Container([
                 ),
                 html.Div([
                     html.Div(
-                        [dcc.Store(id='append_check'),
-                         html.Div(
-                             [html.Div(
-                                 children=dbc.DropdownMenu(
-                                     id='checklist_dropdown',
-                                     children=[
-                                         dbc.Checklist(
-                                             id='data_checklist',
-                                             # input_checked_class_name='checkbox',
-                                             style={'max-height': '400px',
-                                                    'overflow': 'auto'})],
-                                     toggle_style={
-                                         'textTransform': 'none',
-                                         'background': '#fff',
-                                         'border': '#ccc',
-                                         'letter-spacing': '0',
-                                         'font-size': '11px'},
-                                     align_end=True,
-                                     toggle_class_name='dropdown_input',
-                                     label="Select Cells"), ),
-                                 html.Button('Clear All', id='clear_all_button',
-                                             className='local_data_buttons'),
-                                 html.Button('Select All',
-                                             id='select_all_button',
-                                             className='local_data_buttons')],
-                             style={'display': 'flex',
-                                    'flex-wrap': 'wrap',
-                                    'margin-bottom': '5px'})],
+                        [html.Div(
+                            [html.Div(
+                                children=dbc.DropdownMenu(
+                                    id='checklist_dropdown_single',
+                                    children=[
+                                        dbc.Checklist(
+                                            id='data_checklist_single',
+                                            # input_checked_class_name='checkbox',
+                                            style={'max-height': '400px',
+                                                   'overflow': 'auto'})],
+                                    toggle_style={
+                                        'textTransform': 'none',
+                                        'background': '#fff',
+                                        'border': '#ccc',
+                                        'letter-spacing': '0',
+                                        'font-size': '11px'},
+                                    align_end=True,
+                                    toggle_class_name='dropdown_input',
+                                    label="Select Cells"), ),
+                                html.Button('Clear All', id='clear_all_button',
+                                            className='local_data_buttons'),
+                                html.Button('Select All',
+                                            id='select_all_button',
+                                            className='local_data_buttons')],
+                            style={'display': 'flex',
+                                   'flex-wrap': 'wrap',
+                                   'margin-bottom': '5px'})],
                         # style={'width': '200px'}
                     ),
                     dcc.Store(id='cells_data')],
                     style={'display': 'flex', 'flex-direction': 'column',
                            'justify-content': 'left'}),
-                dbc.Spinner(dcc.Graph(id='line_graph'),
+                dbc.Spinner(dcc.Graph(id='line_graph_single'),
                             spinner_class_name='loading_spinner',
                             fullscreen_class_name='loading_spinner_bg')],
                 className="pretty_container",
                 style={'display': 'flex',
                        'flex-direction': 'column',
                        'justify-content': 'space-evenly'}
-            )],
-            id='right-column', className='col-12 col-lg-8 mb-2')],
+            ),
+            html.Div([
+                html.Div('Parameter Variation Plots',
+                         className='title'),
+                html.Div(
+                    [html.Div(
+                        dcc.Dropdown(
+                            id='dropdown_line_variation',
+                            placeholder='Select Variable',
+                            className='dropdown_input'),
+                        id='div_dropdown_line_variation',
+                        # style={'padding': '1px', 'min-width': '200px'}
+                        ),
+                        html.Div(
+                            dcc.Dropdown(id='dropdown_line_subset_variation',
+                                         className='dropdown_input',
+                                         style={'visibility': 'hidden'}),
+                            id='div_dropdown_line_subset_variation',
+                            # style={'padding': '1px', 'min-width': '200px'}
+                        )],
+                    style={'display': 'flex', 'flex-direction': 'row',
+                           'flex-wrap': 'wrap',
+                           'justify-content': 'left'},
+                    ),
+                dbc.Spinner(dcc.Graph(id='line_graph_variation'),
+                            spinner_class_name='loading_spinner',
+                            fullscreen_class_name='loading_spinner_bg')],
+                className="pretty_container",
+                style={'display': 'flex',
+                       'flex-direction': 'column',
+                       'justify-content': 'space-evenly'}
+                )
+            ],
+            id='right-column', className='col-12 col-lg-8 mb-2')
+        ],
         className="row",
-        style={'justify-content': 'space-evenly'}),
+        style={'justify-content': 'space-evenly'}
+    ),
 
-    # Bottom row, links to GitHub,...
+    # BOTTOM ROW DIVS (links to GitHub, etc.)
     html.Div(
         html.Div(
             [html.A('Source code:'),
@@ -458,14 +484,15 @@ def cbf_progress_bar(*args) -> (float, str):
 def cbf_initialization(dummy, value_list: list, multivalue_list: list,
                        id_list: list, multivalue_id_list: list):
     """
-    Initialization
+    Initialization: 
     """
-    # Read pemfc default settings.json file
+    # Read default settings.json file from simulation model
     # --------------------------------------
     try:
         # Initially get default simulation settings structure from
-        # settings.json file in pemfc core module
-        # sim_base_dir = os.path.dirname(pemfc.__file__)
+        # settings.json file in simulation core module
+        # For this template the present settings.json used for the values is 
+        # also used for definition of parameters
         sim_base_dir = '.'
         with open(os.path.join(sim_base_dir, 'settings', 'settings.json')) \
                 as file:
@@ -590,25 +617,25 @@ def cbf_load_settings(contents, filename, value, multival, ids, ids_multival,
                     # All JSON settings match Dash IDs
                     modal_title, modal_body = dm.modal_process('loaded')
                     return new_value_list, new_multivalue_list, \
-                        None, modal_title, modal_body, not modal_state
+                           None, modal_title, modal_body, not modal_state
                 else:
                     # Some JSON settings do not match Dash IDs; return values
                     # that matched with Dash IDs
                     modal_title, modal_body = \
                         dm.modal_process('id-not-loaded', error_list)
                     return new_value_list, new_multivalue_list, \
-                        None, modal_title, modal_body, not modal_state
+                           None, modal_title, modal_body, not modal_state
             except Exception as E:
                 # Error / JSON file cannot be processed; return old value
                 modal_title, modal_body = \
                     dm.modal_process('error', error=repr(E))
                 return value, multival, None, modal_title, modal_body, \
-                    not modal_state
+                       not modal_state
         else:
             # Not JSON file; return old value
             modal_title, modal_body = dm.modal_process('wrong-file')
             return value, multival, None, modal_title, modal_body, \
-                not modal_state
+                   not modal_state
 
 
 @app.callback(
@@ -701,7 +728,7 @@ def cbf_run_single_cal(n_click, inputs, inputs2, ids, ids2, settings):
 
         # Create complete setting dict, append it in additional column
         # "settings" to df_input
-        df_input = create_settings(df_input, settings)
+        df_input = df.create_settings(df_input, settings)
 
         # Run simulation
         df_result, _ = df.run_simulation(df_input)
@@ -715,6 +742,122 @@ def cbf_run_single_cal(n_click, inputs, inputs2, ids, ids2, settings):
     except Exception as E:
         modal_title, modal_body = \
             dm.modal_process('input-error', error=repr(E))
+
+
+@app.callback(
+    Output('df_result_data_store', 'data'),
+    Output('df_input_store', 'data'),
+    Output('spinner_curve', 'children'),
+    Input("btn_init_curve", "n_clicks"),
+    [State({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
+     State({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
+     State({'type': 'input', 'id': ALL, 'specifier': ALL}, 'id'),
+     State({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'id'),
+     State("base_settings_data", "data")],
+    prevent_initial_call=True)
+def cbf_run_initial_curve_calculation(btn, inputs, inputs2, ids, ids2, settings):
+    """
+
+    #ToDO:
+        - Error handling: Handle None in results.
+
+    @param btn:
+    @param inputs:
+    @param inputs2:
+    @param ids:
+    @param ids2:
+    @param settings:
+    @return:
+    """
+
+    n_refinements = 10
+
+    # Progress bar init
+    std_err_backup = sys.stderr
+    file_prog = open('progress.txt', 'w')
+    sys.stderr = file_prog
+
+    # Read pemfc settings.json from store
+    settings = df.read_data(settings)
+
+    # Read data from input fields and save input in dict/dataframe
+    # (one row "nominal")
+    df_input = df.process_inputs(inputs, inputs2, ids, ids2,
+                                 dtype=pd.DataFrame)
+    df_input_backup = df_input.copy()
+
+    # Ensure DataFrame with double bracket
+    # https://stackoverflow.com/questions/20383647/pandas-selecting-by-label-sometimes-return-series-sometimes-returns-dataframe
+    df_input_single = df_input.loc[["nominal"], :]
+    # max_i = find_max_current_density(df_input_single, df_input, settings)
+    max_i = 10000.0
+
+    # Reset solver settings
+    df_input = df_input_backup.copy()
+
+    # Prepare & calculate initial points
+
+    df_results = prepare_initial_curve_computation(
+        input_df=df_input, i_limits=[1, max_i], settings=settings)
+    df_results, success = df.run_simulation(df_results)
+
+    # First refinement steps
+    for _ in range(n_refinements):
+        df_refine = prepare_curve_refinement_calculation(
+            data_df=df_results, input_df=df_input, settings=settings)
+        df_refine, success = df.run_simulation(
+            df_refine, return_unsuccessful=False)
+        df_results = pd.concat([df_results, df_refine], ignore_index=True)
+
+    # Save results
+    results = df.store_data(df_results)
+    df_input_store = df.store_data(df_input_backup)
+
+    # Close process bar files
+    file_prog.close()
+    sys.stderr = std_err_backup
+    return results, df_input_store, "."
+
+
+@app.callback(
+    Output('df_result_data_store', 'data'),
+    Output('spinner_curve_refine', 'children'),
+    Input("btn_refine_curve", "n_clicks"),
+    State('df_result_data_store', 'data'),
+    State('df_input_store', 'data'),
+    State("base_settings_data", "data"),
+    prevent_initial_call=True)
+def cbf_run_refine_curve(inp, state, state2, settings):
+    # Number of refinement steps
+    n_refinements = 5
+
+    # Progress bar init
+    std_err_backup = sys.stderr
+    file_prog = open('progress.txt', 'w')
+    sys.stderr = file_prog
+
+    # Read pemfc settings.json from store
+    settings = df.read_data(settings)
+
+    # State-Store access returns None, I don't know why (FKL), workaround:
+    df_results = df.read_data(ctx.states["df_result_data_store.data"])
+    df_nominal = df.read_data(ctx.states["df_input_store.data"])
+
+    # Refinement loop
+    for _ in range(n_refinements):
+        df_refine = prepare_curve_refinement_calculation(
+            data_df=df_results, input_df=df_nominal, settings=settings)
+        df_refine, success = df.run_simulation(
+            df_refine, return_unsuccessful=False)
+        df_results = pd.concat([df_results, df_refine], ignore_index=True)
+
+    # Save results
+    results = df.store_data(df_results)
+
+    # Close process bar files
+    file_prog.close()
+    sys.stderr = std_err_backup
+    return results, ""
 
 
 @app.callback(Output('study_data_table', 'data'),
@@ -794,7 +937,7 @@ def cbf_run_study(btn, inputs, inputs2, ids, ids2, settings, tabledata,
     if not curve_calculation:
         # Create complete setting dict & append it in additional column
         # "settings" to df_input
-        data = create_settings(data, settings, input_cols=df_input.columns)
+        data = df.create_settings(data, settings, input_cols=df_input.columns)
         # Run Simulation
         results, success = df.run_simulation(data)
         results = df.store_data(results)
@@ -810,7 +953,7 @@ def cbf_run_study(btn, inputs, inputs2, ids, ids2, settings, tabledata,
             # df_input_single = df_input.loc[[:], :]
 
             # max_i = find_max_current_density(data.iloc[[i]], df_input, settings)
-            max_i = 10000 # dummy value
+            max_i = 10000  # dummy value
             # # Reset solver settings
             # df_input = df_input_backup.copy()
 
@@ -835,7 +978,8 @@ def cbf_run_study(btn, inputs, inputs2, ids, ids2, settings, tabledata,
                 df_results = pd.concat(
                     [df_results, df_refine], ignore_index=True)
 
-            result_data = pd.concat([result_data, df_results], ignore_index=True)
+            result_data = pd.concat([result_data, df_results],
+                                    ignore_index=True)
 
         results = df.store_data(result_data)
 
@@ -872,6 +1016,142 @@ def cbf_load_results(content):
     b = pickle.load(io.BytesIO(decoded))
     return b
 
+@app.callback(
+    Output('line_graph_variation', 'figure'),
+    Input('df_result_data_store', 'data'),
+    Input('btn_plot_curve', 'n_clicks'),
+    State('df_input_store', 'data'),
+    prevent_initial_call=True)
+def cbf_figure_curve(inp1, inp2, dfinp):
+    """
+    Prior to plot: identification of same parameter sets with different
+    current density. Those points will be connected and have identical color
+    """
+
+    # Read results
+    results = df.read_data(ctx.inputs["df_result_data_store.data"])
+    df_nominal = df.read_data(ctx.states["df_input_store.data"])
+    if results is None or df_nominal is None:
+        raise PreventUpdate
+    else:
+        results = results.loc[results["successful_run"] == True, :]
+        results = results.drop(columns=['local_data'])
+
+        # Create figure with secondary y-axis
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Check for identical parameters, varying current density and voltage only
+        group_columns = list(df_nominal.columns)
+        group_columns.remove('simulation-current_density')
+        group_columns.remove('simulation-average_cell_voltage')
+
+        # Filter columns from results with NA or None values
+        na_columns = results.isna().any()
+        na_columns = na_columns[na_columns == True]
+        drop_labels = list(na_columns.index)
+        group_columns = [item for item in group_columns if item not in drop_labels]
+
+        # Groupby fails, as data contains lists, which are not hashable, therefore conversion to tuple
+        # see https://stackoverflow.com/questions/52225301/error-unhashable-type-list-while-using-df-groupby-apply
+        # see https://stackoverflow.com/questions/51052416/pandas-dataframe-groupby-into-list-with-list-in-cell-data
+        # results_red = results.loc[:, df_nominal.columns].copy()
+        results = results.applymap(lambda x: tuple(x) if isinstance(x, list) else x)
+        grouped = results.groupby(group_columns, sort=False)
+
+        for _, group in grouped:
+            group.sort_values(
+                "simulation-current_density", ignore_index=True, inplace=True)
+            group["Current Density"] = group["global_data"].apply(
+                lambda x: x["Average Current Density"]["value"] if (x is not None) else None)
+            group["Voltage"] = group["global_data"].apply(
+                lambda x: x["Stack Voltage"]["value"] if (x is not None) else None)
+            group["Power"] = group["global_data"].apply(
+                lambda x: x["Stack Power"]["value"] if (x is not None) else None)
+
+            # Add traces
+            if "variation_parameter" in group.columns:
+                # Variation parameter can be one parameter or multiple parameter
+                # separated by ",".
+                varpar = group["variation_parameter"][0]
+                try:
+                    if varpar.find(',') == -1:  # no param separator -> one param
+                        setname = f"{varpar}: {group[varpar][0]}"
+                        # Add figure title
+                        fig.update_layout(title_text=f"Current-Voltage Curve")
+                    else:  # parameter separator found, multiple parameter...
+                        list_varpar = [par for par in varpar.split(',')]
+                        if len(list_varpar) > 3:  # don't plot legend
+                            fig.update_layout(showlegend=False,
+                                              title_text="Current-Voltage Curve")
+                            setname = ""
+                            for vp in list_varpar:
+                                if isinstance(group[vp][0], tuple):
+                                    setname += \
+                                        f'{vp}:[{Decimal(group[vp][0][0]):.3E}, '
+                                    setname += \
+                                        f'{Decimal(group[vp][0][1]):.3E}] , <br>'
+                                else:
+                                    setname += \
+                                        f'{vp}:{Decimal(group[vp][0]):.3E} , <br>'
+
+                        else:
+                            fig.update_layout(
+                                title_text=f"Current-Voltage Curve, "
+                                           f"Variation parameter: <br> "
+                                           f"{[par for par in varpar.split(',')]}")
+                            setname = ""
+                            for n, vp in enumerate(list_varpar):
+                                if isinstance(group[vp][0], tuple):
+                                    setname += \
+                                        f'par{n}:[{Decimal(group[vp][0][0]):.3E}, '
+                                    setname += \
+                                        f'{Decimal(group[vp][0][1]):.3E}] , <br>'
+                                else:
+                                    setname += f'{Decimal(group[vp][0]):.3E} , <br>'
+
+                        setname = setname[:-6]
+
+                except:
+                    setname = "tbd"
+                    # Add figure title
+                    fig.update_layout()
+
+            else:
+                # Add figure title
+                fig.update_layout()
+                setname = ""
+
+            if len(group) > 1:
+                fig.add_trace(
+                    go.Scatter(x=list(group["Current Density"]),
+                               y=list(group["Voltage"]), name=f"{setname}",
+                               mode='lines+markers'), secondary_y=False)
+            else:
+                fig.add_trace(
+                    go.Scatter(x=list(group["Current Density"]),
+                               y=list(group["Voltage"]), name=f"{setname}",
+                               mode='markers'), secondary_y=False)
+
+        # # Set x-axis title
+        # fig.update_xaxes(title_text="Current Density [A/m²]")
+        #
+        # # Set y-axes titles
+        # fig.update_yaxes(title_text="Voltage [V]", secondary_y=False)
+        # fig.update_yaxes(title_text="Power [W]", secondary_y=True)
+
+        x_title = 'Current Density / A/m²'
+        y_title = 'Voltage / V'
+        layout = go.Layout(
+            font={'color': 'black', 'family': 'Arial'},
+            # title='Local Results in Heat Map',
+            titlefont={'size': 11, 'color': 'black'},
+            xaxis={'tickfont': {'size': 11}, 'titlefont': {'size': 14},
+                   'title': x_title},
+            yaxis={'tickfont': {'size': 11}, 'titlefont': {'size': 14},
+                   'title': y_title},
+            margin={'l': 100, 'r': 20, 't': 20, 'b': 20})
+        fig.update_layout(layout, hoverlabel=dict(namelength=-1))
+        return fig
 
 @app.callback(
     [Output('global_data_table', 'columns'),
@@ -933,8 +1213,8 @@ def get_dropdown_options_heatmap(results):
 
 
 @app.callback(
-    [Output('dropdown_line', 'options'),
-     Output('dropdown_line', 'value')],
+    [Output('dropdown_line_single', 'options'),
+     Output('dropdown_line_single', 'value')],
     Input('df_result_data_store', 'data'),
     prevent_initial_call=True
 )
@@ -981,10 +1261,10 @@ def get_dropdown_options_heatmap_2(dropdown_key, results):
 
 
 @app.callback(
-    [Output('dropdown_line2', 'options'),
-     Output('dropdown_line2', 'value'),
-     Output('dropdown_line2', 'style')],
-    Input('dropdown_line', 'value'),
+    [Output('dropdown_line_subset_single', 'options'),
+     Output('dropdown_line_subset_single', 'value'),
+     Output('dropdown_line_subset_single', 'style')],
+    Input('dropdown_line_single', 'value'),
     Input('df_result_data_store', 'data'),
     prevent_initial_call=True
 )
@@ -1145,16 +1425,16 @@ def update_heatmap_graph(dropdown_key, dropdown_key_2, results):
 
 
 @app.callback(
-    [Output('line_graph', 'figure'),
+    [Output('line_graph_single', 'figure'),
      Output('cells_data', 'data'),
-     Output('data_checklist', 'options'),
-     Output('data_checklist', 'value')],
-    [Input('dropdown_line', 'value'),
-     Input('dropdown_line2', 'value'),
-     Input('data_checklist', 'value'),
+     Output('data_checklist_single', 'options'),
+     Output('data_checklist_single', 'value')],
+    [Input('dropdown_line_single', 'value'),
+     Input('dropdown_line_subset_single', 'value'),
+     Input('data_checklist_single', 'value'),
      Input('select_all_button', 'n_clicks'),
      Input('clear_all_button', 'n_clicks'),
-     Input('line_graph', 'restyleData')],
+     Input('line_graph_single', 'restyleData')],
     Input('df_result_data_store', 'data'),
     prevent_initial_call=True
 )
@@ -1243,13 +1523,13 @@ def update_line_graph(drop1, drop2, checklist, select_all_clicks,
                 fig.for_each_trace(
                     lambda trace: trace.update(visible='legendonly'))
                 return fig, cells, options, []
-            elif 'data_checklist.value' in ctx_triggered:
+            elif 'data_checklist_single.value' in ctx_triggered:
                 fig.for_each_trace(
                     lambda trace: trace.update(
                         visible=True) if trace.name in checklist
                     else trace.update(visible='legendonly'))
                 return fig, cells, options, checklist
-            elif 'line_graph.restyleData' in ctx_triggered:
+            elif 'line_graph_single.restyleData' in ctx_triggered:
                 read = restyle_data[0]['visible']
                 if len(read) == 1:
                     cell_name = cells[restyle_data[1][0]]['name']

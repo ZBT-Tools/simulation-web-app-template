@@ -1,17 +1,15 @@
-from functools import wraps
 import data_transfer
 import base64
 import io
 import json
 import pickle
 import jsonpickle
-import collections
 import ast
 from itertools import product
 from glom import glom
 import pandas as pd
 import numpy as np
-from . import simulation_api as sim_api
+from simulation_api import simulation_wrapper as sim_api
 from . import dash_layout as dl
 
 
@@ -67,9 +65,12 @@ def store_data(data):
 
 def read_data(data):
     # Read data from storage
-    data = jsonpickle.loads(data)
-    data = pickle.loads(data)
-    return data
+    if data is None:
+        return None
+    else:
+        data = jsonpickle.loads(data)
+        data = pickle.loads(data)
+        return data
 
 
 def interpolate_1d(array, add_edge_points=False):

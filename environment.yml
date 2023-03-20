@@ -1,28 +1,29 @@
-name: dash_web_app
+name: sim_gui_app
 channels:
     - conda-forge
+    - cantera
 dependencies:
-    - python>=3.10
+    - python
     - pandas
     - numpy
     - scipy
     - matplotlib
-    - dash>=2.5.1
-    - dash-bootstrap-components>=1.2.0
+    - dash
+    - dash-bootstrap-components
     - plotly
     - glom
-    - diskcache
-    - celery
     - redis
     - pandarallel
     - tqdm
     - pip
     - openpyxl
+    - cantera
     - pip:
         - gunicorn
-        - dash-extensions>=0.1.1
-        - flask-caching>=1.10.1
+        - dash-extensions
+        - flask-caching
         - jsonpickle
+        - jsonnet-binary
         - git+https://github.com/ZBT-Tools/data-transfer.git@master#egg=data_transfer
 
 

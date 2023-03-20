@@ -2,12 +2,12 @@ import pandas as pd
 import numpy as np
 import data_transfer
 
-from sim_app.main import create_settings
-# from main import create_settings
+from . import dash_functions as df
 
 
-def prepare_initial_curve_computation(input_df: pd.DataFrame, i_limits: list, settings,
-                                      input_cols=None) -> pd.DataFrame:
+def prepare_initial_curve_computation(
+        input_df: pd.DataFrame, i_limits: list,
+        settings, input_cols=None) -> pd.DataFrame:
     """
     Initial calculations for polarization-curve
     input_df has to have only one row!
@@ -22,7 +22,7 @@ def prepare_initial_curve_computation(input_df: pd.DataFrame, i_limits: list, se
         data_df.loc[i, :] = input_df.iloc[0, :]  # .loc["nominal", :]
         data_df.loc[i, "simulation-current_density"] = float(i)
 
-    data_df = create_settings(data_df, settings, input_cols=input_cols)
+    data_df = df.create_settings(data_df, settings, input_cols=input_cols)
 
     data_df.loc[:, "u_pred"] = None
     data_df.loc[:, "u_pred_diff"] = None
