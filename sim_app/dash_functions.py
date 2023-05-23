@@ -50,7 +50,7 @@ def run_simulation(input_table: pd.DataFrame, return_unsuccessful=True) \
     return input_table, all_successfull
 
 
-def store_data(data):
+def convert_to_storage_format(data):
     """
     https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle
     simple variables, no objects, DataFrames..
@@ -65,7 +65,7 @@ def store_data(data):
     return data
 
 
-def read_data(data):
+def read_storage_data_format(data):
     # Read data from storage
     data = jsonpickle.loads(data)
     data = pickle.loads(data)
@@ -86,6 +86,65 @@ def interpolate_1d(array, add_edge_points=False):
         return np.concatenate((first, interpolated, last), axis=0)
     else:
         return interpolated
+
+
+def convert_gui_state_to_sim_dict(gui_state: list) -> dict:
+    """
+    Input
+    GUI input field list (e.g. from ctx.states_list[0])
+
+    Return
+    Dictionary in format of simulation (including lists)
+
+    """
+    gui_ids = [el['id']['sim_id'] for el in gui_state]
+    gui_vals = [el['id']['value'] if 'value' in el['id'] else None for el in gui_state]
+
+    # Combine values to lists for suffix "-0", "-1","-n", identifying belonging togehter values
+    gui_dict = {}
+    for gui_id, gui_val in zip(gui_ids, gui_vals):
+        # Check 'multi-input'
+        if gui_id[-1].isdigit() and gui_id[-2] == "-":
+            # Check if name is available
+            sim_name = gui_id[:-2]
+            if sim_name in gui_dict:
+                # Add value to list
+                gui_dict[sim_name].append(gui_val)
+            else:
+                # create entry
+                gui_dict[sim_name] = [gui_val]
+        else:
+            sim_name = gui_id
+            gui_dict[sim_name] = gui_val
+
+    return gui_dict
+
+def convert_sim_dict_to_state_value_list(sim_dict: dict, state_list:list) -> list:
+    # Undo combination of multi input keys
+    # Combine values to lists for suffix "-0", "-1","-n", identifying belonging togehter values
+    gui_dict = {}
+    for k,v in sim_dict:
+        if isinstance(v,list):
+
+
+
+    for gui_id, gui_val in zip(gui_ids, gui_vals):
+        # Check 'multi-input'
+        if gui_id[-1].isdigit() and gui_id[-2] == "-":
+            # Check if name is available
+            sim_name = gui_id[:-2]
+            if sim_name in gui_dict:
+                # Add value to list
+                gui_dict[sim_name].append(gui_val)
+            else:
+                # create entry
+                gui_dict[sim_name] = [gui_val]
+        else:
+            sim_name = gui_id
+            gui_dict[sim_name] = gui_val
+
+    return gui_dict
+
 
 
 def create_settings(df_data: pd.DataFrame, settings,
@@ -142,28 +201,28 @@ def unstringify(val):
         yield val
 
 
-def multi_inputs(dicts):
-    """
-    Deal with components that have multiple values and multiple IDs from
-    id-value dicts
-    (can be found inside def process_inputs; dicts pre-processed inside the
-    function)
-    """
-    dict_list = {}
-    for k, v in dicts.items():
-        if k[-1:].isnumeric() is False:
-            dict_list.update({k: v})
-        else:
-            if k[:-2] not in dict_list:
-                dict_list.update({k[:-2]: v})
-            elif k[:-2] in dict_list:
-                if not isinstance(dict_list[k[:-2]], list):
-                    new_list = [dict_list[k[:-2]]]
-                else:
-                    new_list = dict_list[k[:-2]]
-                new_list.append(v)
-                dict_list.update({k[:-2]: new_list})
-    return dict_list
+# def multi_inputs(dicts):
+#     """
+#     Deal with components that have multiple values and multiple IDs from
+#     id-value dicts
+#     (can be found inside def process_inputs; dicts pre-processed inside the
+#     function)
+#     """
+#     dict_list = {}
+#     for k, v in dicts.items():
+#         if k[-1:].isnumeric() is False:
+#             dict_list.update({k: v})
+#         else:
+#             if k[:-2] not in dict_list:
+#                 dict_list.update({k[:-2]: v})
+#             elif k[:-2] in dict_list:
+#                 if not isinstance(dict_list[k[:-2]], list):
+#                     new_list = [dict_list[k[:-2]]]
+#                 else:
+#                     new_list = dict_list[k[:-2]]
+#                 new_list.append(v)
+#                 dict_list.update({k[:-2]: new_list})
+#     return dict_list
 
 
 def parse_contents(
@@ -228,29 +287,33 @@ def settings_to_dash_gui(settings: dict) -> (dict, list):
     return gui_dict, error_list
 
 
-def update_gui_lists(id_value_dict: dict,
-                     old_vals: list, old_multivals: list,
-                     ids: list, ids_multival: list) -> (list, list):
-    dict_ids = \
-        {id_l: val for id_l, val
-         in zip([id_l['id'] for id_l in ids], old_vals)}
-    dict_ids_multival = \
-        {id_l: val for id_l, val
-         in zip([id_l['id'] for id_l in ids_multival], old_multivals)}
+def update_gui_settings_dict(new_settings_dict: dict, old_settings_dict: dict,
+                               mode='update') -> dict:
+    """
+    ToDO: keep old_vals and ids in one variable, fail safe!
 
-    id_match = set.union(set(dict_ids),
-                         set([item[:-2] for item in dict_ids_multival]))
+    Input
+    new_settings_dict: dict:    Dictionary with program setting data, example:
+                                {'stack-cell_number':10,
+                                'anode-bpp-electrical_conductivity':[60000,60000]}
+    old_settings_dict: dict:    to be updated settings dictionary (same format
+    mode:                       if "update" only keys which are already in old_settings_dict
+                                will be updated.
+                                Potential other implementation "extend" could add new keys to
+                                old_settings_dict
 
-    for k, v in id_value_dict.items():
-        if k in id_match:
-            if isinstance(v, list):
-                for num, val in enumerate(v):
-                    dict_ids_multival[k + f'_{num}'] = check_ifbool(val)
-            else:
-                dict_ids[k] = check_ifbool(v)
-        else:
-            continue
-    return list(dict_ids.values()), list(dict_ids_multival.values())
+
+    Return
+    Updated settings dictionary
+    """
+    if mode == "update":
+        # Reduce new_settings_dict to available keys in old_settings_dict
+        shared_keys = new_settings_dict.keys() & old_settings_dict.keys()
+        update_dict = {k: new_settings_dict[k] for k in shared_keys}
+        old_settings_dict.update(update_dict)
+        return old_settings_dict
+    else:
+        raise TypeError('Unknown mode!')
 
 
 def check_ifbool(val):
@@ -267,57 +330,24 @@ def check_ifbool(val):
         return val
 
 
-def process_inputs(inputs, multiinputs, id_inputs, id_multiinputs,
-                   dtype=dict):
+def convert_gui_settings_to_DataFrame(gui_settings_dict:dict):
+    """
+    ToDO
     """
 
-    Returns dict_data dictionary of format
-        dict_data = {'stack-cell_number':1, ...}
-    or pd.DataFrame with row "nominal", columns=['stack-cell_number',...]
-
-
-    Used in matching key-value (id-value) in the order of the initialised
-    Dash's IDs
-    (multi inputs handle two value and has multiple IDs assigned to it)
-    """
-    new_inputs = []
-    for val in inputs + multiinputs:
-        new_val = list(unstringify(val))[0]
-
-        if isinstance(new_val, list):
-            if len(new_val) == 0:
-                new_val = bool(new_val)
-            else:
-                if len(new_val) == 1 and new_val[0] == 1:
-                    new_val = bool(new_val)
-        new_inputs.append(new_val)
-
-    new_ids = [id_l['id'] for id_l in id_inputs] + \
-              [id_l['id'] for id_l in id_multiinputs]
-
-    dict_data = {}
-    for id_l, v_l in zip(new_ids, new_inputs):
-        dict_data.update({id_l: v_l})
-    new_dict_data = multi_inputs(dict_data)
-
-    if dtype is dict:
-        return new_dict_data
-    elif dtype is pd.DataFrame:
-        df_data = pd.DataFrame()
-        input_data = {}
-        for k, v in new_dict_data.items():
-            # input_data[k] = {'sim_name': k.split('-'), 'value': v}
-
-            # Info: pd.DataFrame.at instead of .loc, as .at can put lists into
-            # df cell.
-            # .loc can be used for passing values to more than one cell,
-            # that's why passing lists is not possible.
-            # Column must be of type object to accept list-objects
-            # https://stackoverflow.com/questions/26483254/python-pandas-insert-list-into-a-cell
-            df_data.at["nominal", k] = None
-            df_data[k] = df_data[k].astype(object)
-            df_data.at["nominal", k] = v
-        return df_data
+    df_data = pd.DataFrame()
+    input_data = {}
+    for k, v in gui_settings_dict.items():
+        # Info: pd.DataFrame.at instead of .loc, as .at can put lists into
+        # df cell.
+        # .loc can be used for passing values to more than one cell,
+        # that's why passing lists is not possible.
+        # Column must be of type object to accept list-objects
+        # https://stackoverflow.com/questions/26483254/python-pandas-insert-list-into-a-cell
+        df_data.at["nominal", k] = None
+        df_data[k] = df_data[k].astype(object)
+        df_data.at["nominal", k] = v
+    return df_data
 
 
 def variation_parameter(df_input: pd.DataFrame, table_input,

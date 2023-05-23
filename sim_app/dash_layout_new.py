@@ -97,7 +97,7 @@ def input_row_generic(name: str,
         sim_name_flat = flatten_hierachical_simnames(sim_name)[n]
 
         if inputfield_type == "numeric":
-            col = dbc.Col(dbc.Input(id={"type": "input", "sim_id": sim_name_flat},
+            col = dbc.Col(dbc.Input(id={"type": "new_input", "sim_id": sim_name_flat},
                                     disabled=disabled[n],
                                     size="sm"),
                           **inputfield_widths[n_inputfields])
@@ -106,13 +106,13 @@ def input_row_generic(name: str,
         elif inputfield_type == "Dropdown":
             col = dbc.Col(
                 dcc.Dropdown(args["values"], args["values"][0],
-                             id={"type": "input", "sim_id": sim_name_flat}),
+                             id={"type": "new_input", "sim_id": sim_name_flat}),
                 **inputfield_widths[n_inputfields])
             input_fields.append(col)
 
         elif inputfield_type == "Checkbox":
             col = dbc.Col(
-                dbc.Checkbox(id={"type": "input", "sim_id": sim_name_flat}),
+                dbc.Checkbox(id={"type": "new_input", "sim_id": sim_name_flat}),
                 **inputfield_widths[n_inputfields])
             input_fields.append(col)
         else:

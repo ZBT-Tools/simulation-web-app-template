@@ -1,5 +1,6 @@
 import base64
 import io
+import itertools
 import os
 from dash import dash_table
 import numpy as np
@@ -452,35 +453,30 @@ def cbf_progress_bar(*args) -> (float, str):
 
 
 @app.callback(
-    Output({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
-    Output({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
+    # Output({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
+    # Output({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
+    Output({'type': 'new_input', 'sim_id': ALL}, 'value'),
     Output("base_settings_data", "data"),
     Output('df_input_store', 'data'),
     Output("study_table", "children"),
     Input("initial_dummy", "children"),
-    [State({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
-     State({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
-     State({'type': 'input', 'id': ALL, 'specifier': ALL}, 'id'),
-     State({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'id')]
-)
-def cbf_initialization(dummy, value_list: list, multivalue_list: list,
-                       id_list: list, multivalue_id_list: list):
+    State({'type': 'new_input', 'sim_id': ALL}, 'value'))
+def cbf_initialization(dummy, gui_value_list: list):
     """
     Initialization
     """
-    # Read pemfc default settings.json file
+    # Read default settings.json file from sim_base_dir & local settings.json
     # --------------------------------------
     try:
         # Initially get default simulation settings structure from
         # settings.json file in pemfc core module
         # sim_base_dir = os.path.dirname(pemfc.__file__)
         sim_base_dir = '.'
-        with open(os.path.join(sim_base_dir, 'settings', 'settings.json')) \
-                as file:
+        with open(os.path.join(sim_base_dir, 'settings', 'settings.json')) as file:
             base_settings = json.load(file)
+            base_settings = df.storage_format_data(base_settings)
     except Exception as E:
         print(repr(E))
-    base_settings = df.store_data(base_settings)
 
     try:
         # Initially get default simulation input values from local
@@ -489,28 +485,24 @@ def cbf_initialization(dummy, value_list: list, multivalue_list: list,
             input_settings = json.load(file)
     except Exception as E:
         print(repr(E))
-    gui_label_value_dict, _ = df.settings_to_dash_gui(input_settings)
 
-    # Update initial data input with "input_settings"
+    settings_file_dict, _ = df.settings_to_dash_gui(input_settings)
+
+    # From input field to simulation structure...
+    gui_settings_dict = df.convert_gui_state_to_sim_dict(ctx.states_list[0])
+
+    # Update gui_settings data with default settings
     # --------------------------------------
-    # ToDO: This is a quick fix.
-    # Solution should be: At GUI initialization, default values should be taken from
-    # settings.json, NOT GUI-describing dictionaries.
+    initialized_gui_settings_dict = df.update_gui_settings_dict(settings_file_dict,
+                                                                  gui_settings_dict)
 
-    new_value_list, new_multivalue_list = \
-        df.update_gui_lists(gui_label_value_dict,
-                            value_list, multivalue_list,
-                            id_list, multivalue_id_list)
-
-    # Read initial data input
+    # Save initial data in input DataDrame
     # --------------------------------------
-    # Read data from input fields and save input in dict/dataframe
+    # Save initialized input data in DataFrame
     # (one row "nominal")
 
-    df_input = df.process_inputs(new_value_list, new_multivalue_list,
-                                 id_list, multivalue_id_list,
-                                 dtype=pd.DataFrame)
-    df_input_store = df.store_data(df_input)
+    df_input = df.convert_gui_settings_to_DataFrame(initialized_gui_settings_dict)
+    df_input_store = df.convert_to_storage_format(df_input)
 
     # Initialize study data table
     # -------------------------------------
@@ -559,8 +551,7 @@ def cbf_initialization(dummy, value_list: list, multivalue_list: list,
         style_table={'height': '300px', 'overflowY': 'auto'}
     )
 
-    return new_value_list, new_multivalue_list, \
-        base_settings, df_input_store, table
+    return new_value_list, base_settings, df_input_store, table
 
 
 @app.callback(
@@ -1375,6 +1366,68 @@ def visibility(inputs, options):
             list_options[num] = {'display': 'none'}
 
     return list_options
+
+
+@app.callback(
+    Output({"type": "input", "sim_id": ALL}, "disabled"),
+    Output({"type": "collapse_row", "name": ALL}, "is_open"),
+    Input({"type": "input", "sim_id": ALL}, "value"),
+    State({"type": "input", "sim_id": ALL}, "disabled"),
+    State({"type": "collapse_row", "name": ALL}, "is_open")
+)
+def cbf_gui_conditions(inp, state, state2):
+    """
+    This callback updates the settings portion of the GUI based on conditions defined in
+    the styling.yaml-file.
+
+    Currently to options are implemented: disabling ("gray out") and collapse ("hide")
+
+    Note: Conditions are read from global variable "gui_conditions"
+
+    Input: Triggerd by arbitrary input field change.
+
+    Output: Two different outputs have to be given due to different location of action for "disable"
+     and "collapse" options.
+
+
+    """
+
+    # Get state dictionaries ( id & property)
+    disabled_states = dict(itertools.islice(ctx.states.items(), len(state)))
+    collapse_open_states = dict(itertools.islice(ctx.states.items(), len(state), len(ctx.states)))
+
+    # Differentiation between two possible options:
+    # "disable" --> disable input fields
+    # "collapse"--> collapse complete input row
+    for action_type, conditions in gui_conditions.items():
+        for targ_id, cond in conditions.items():
+            trigger = False
+
+            if action_type == "disable":
+                for trig_id, trigg_data in cond.items():
+                    trigger_state = ctx.inputs[f'{{"sim_id":"{trig_id}","type":"input"}}.value']
+                    if trigger_state is None:
+                        trigger_state = False
+                    if trigger_state in trigg_data["values"]:
+                        trigger = True
+
+                disabled_states[f'{{"sim_id":"{targ_id}","type":"input"}}.disabled'] = trigger
+
+            elif action_type == "collapse":
+                for trig_id, trigg_data in cond.items():
+                    trigger_state = ctx.inputs[f'{{"sim_id":"{trig_id}","type":"input"}}.value']
+                    if trigger_state is None:
+                        trigger_state = False
+                    if trigger_state in trigg_data["values"]:
+                        trigger = True
+
+                collapse_open_states[f'{{"name":"{targ_id}","type":"collapse_row"}}.is_open'] = \
+                    not trigger
+
+            else:
+                raise Exception("Undefined GUI action type. Check GUI definition.")
+
+    return [v for _, v in disabled_states.items()], [v for _, v in collapse_open_states.items()]
 
 
 if __name__ == "__main__":
