@@ -1,16 +1,13 @@
 import base64
-# import gc
 import io
 import os
 from dash import dash_table
 import numpy as np
 import pandas as pd
 import pickle
-import re
 import copy
 import sys
 import json
-from glom import glom
 import dash
 from dash_extensions.enrich import Output, Input, State, ALL, html, dcc, \
     ServersideOutput, ctx
@@ -23,6 +20,8 @@ from plotly.subplots import make_subplots
 
 from sim_app.dash_functions import create_settings
 from . import dash_functions as df, dash_layout as dl, dash_modal as dm
+from . import dash_layout_new as dl_new
+# import dash_functions as df, dash_layout as dl, dash_modal as dm
 from sim_app.dash_app import app
 
 import data_transfer
@@ -50,6 +49,10 @@ app.title = 'PEMFC Model'
 with open(os.path.join('settings', 'parameters_layout.json')) as file:
     parameters_layout = json.load(file)
 
+# New: Read layout settings from json file
+# Initialize GUI
+gui_settings_def_file = os.path.join('settings', "styling.yaml")
+gui_settings, gui_conditions = dl_new.create_gui_from_definition_file(gui_settings_def_file)
 
 # Process bar components
 pbar = dbc.Progress(id='pbar')
@@ -120,7 +123,12 @@ app.layout = dbc.Container([
             # Menu Tabs
             html.Div([
                 dl.tab_container(parameters_layout)],
-                id='setting_container'),  # style={'flex': '1'}
+                id='setting_container'),
+
+            # Add new input
+            html.Div([gui_settings],
+                     id='setting_container'),
+
             # Buttons 1 (Load/Save Settings, Run
             html.Div([  # LEFT MIDDLE: Buttons
                 html.Div([
@@ -552,7 +560,7 @@ def cbf_initialization(dummy, value_list: list, multivalue_list: list,
     )
 
     return new_value_list, new_multivalue_list, \
-           base_settings, df_input_store, table
+        base_settings, df_input_store, table
 
 
 @app.callback(
@@ -810,7 +818,7 @@ def cbf_run_study(btn, inputs, inputs2, ids, ids2, settings, tabledata,
             # df_input_single = df_input.loc[[:], :]
 
             # max_i = find_max_current_density(data.iloc[[i]], df_input, settings)
-            max_i = 10000 # dummy value
+            max_i = 10000  # dummy value
             # # Reset solver settings
             # df_input = df_input_backup.copy()
 

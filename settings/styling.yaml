@@ -1,0 +1,215 @@
+# Short Description (#ToDo: Copy into Wiki!)
+# ----------------------------
+# This yaml document defines the input possibilities of the app.
+# You can define an input field structure which consists of the following main elements: tabs,
+# blocks and rows.
+#
+# Each row can have multiple input options of different types as numerical input fields, dropdown
+# menus and checkboxes.
+# The input can be defined conditionally, e.g. some options appear only if a specific dropdown
+# option is chosen.
+#
+# "rows" can be grouped in "blocks". Blocks can have a title and additional headlines for
+# input fields.
+#
+#
+# Layout Structure
+# ----------------------------
+# The layout needs to be of the following structure:
+# Note: "_" is an arbitrary addition to identifers "tab","block","row".
+# Examples: "tab1", "tab2", "tabthree", "tabIV" )
+#
+# tab_:
+#   block_:
+#     row_: ...
+#
+# A "title" can optionally be given to a tab and block. Columns of input fields can be given
+# column headers. Example:
+#
+# tab1:
+#   title: "First Tab"
+#   block1:
+#     title: "Some Inputs
+#     column_headers: ["Anode", "Cathode"]
+#     row1: ...
+#     row2: ...
+#
+# Input Row Definition
+# ----------------------------
+# An input row is defined like a python dictionary with the following keys:
+#   name: str,        Description in GUI next to input fields
+#   sim_name: list,   List of internal variables for the input field.
+#                     Internal variables can be hierarchical, given in list form.
+#                     The number of given sim_names defines the number of input fields in the row.
+#                     Examples:
+#                     sim_name = [["var1"],["var2"],["var3"]] --> Three input fields with
+#                     non-hierarchical variables.
+#                     sim_name = [["anode","BPP_thickness"],["cathode","BPP_thickness"]]
+#                                     --> Two input fields with 2-level hierarchical variables
+#
+#                     The Examples above generate independent variables for each input field.
+#                     If you want tolink multiple input fields together and create one variable
+#                     of a tuple/list type,
+#                     you can do it by defining numeric values (still as string) as an additional
+#                     hierarchy level.
+#                     Example:
+#                     sim_name = [["Conductivity","inplane"],["Conductivity","throughplane"]
+#                                     --> Two independent variables
+#                     sim_name = [["Conductivity","0"],["Conductivity","1"]]
+#                                     --> One variable "Conductivity" of type: 2-element list
+#   condition_behaviour: list,  see "Conditions"-Chapter below
+#   unit: str,        Unit to show in GUI
+#   inputfield_type: str, Optional. Default: Numerical Input Field.
+#                     Options: "Dropdown" and "Checkbox".
+#                     "Dropdown" requires additional key "values", a list of strings with
+#                     dropdown options.
+#
+#
+# Conditions:  #ToDo Rewrite
+# ----------------------------
+# Option 1: Definition inside "row"-Definition
+#           Structure:
+#           conditional_behaviour: [[condition def for first 1st field],
+#           [condition def for 2nd input field],...],
+#           where [condition def for field] is:
+#           [[trigger id], [list of trigger values for triger id], action]
+#
+# Option 2: Definition inside/at end of of block definition or tab definition
+#           Structure
+#           conditional_behaviour: [ [trigger and result],[trigger and result],
+#           [trigger and result],...]
+#           where [condition for field] is: [[trigger id],[list of trigger values of trigger id],
+#           [list of target ids], action],
+#
+#
+
+
+
+tab1:
+  title: "Cells"
+  block1:
+    title: "Cell Lengths"
+    row1: {name: "Cell Number", sim_name: ["stack", "cell_number"], unit: ""}
+    row2: {name: "Cell Length", sim_name: ["cell", "length"], unit: "m"}
+  block2:
+    column_headers: ["Anode","Cathode"]
+    row1: {name: "Channel Number", sim_name: [['anode', 'channel_number'],
+            ['cathode', 'channel_number']], unit: ""}
+  block3:
+    title: "Flow Field Settings"
+
+    row1: {name: "Shape of Cross-Section", inputfield_type: "Dropdown",
+        values: ['rectangular', 'trapezoidal', 'triangular'],
+        sim_name: [['anode', 'channel', 'cross_sectional_shape'],
+                   ['cathode', 'channel', 'cross_sectional_shape']],
+        unit: ""}
+
+    row2: {name: "Channel Width", sim_name:[['anode', 'channel', 'width'],
+          ['cathode', 'channel', 'width']], unit: "m"}
+
+    row3: {name: "Base Width", sim_name:[['anode', 'channel', 'base_width'],
+          ['cathode', 'channel', 'base_width']], unit: "m",
+          condition_behaviour: [{"trigger_id":['anode', 'channel', 'cross_sectional_shape'],
+                                  "trigger_cond":['rectangular','triangular'],"action":'disable'},
+                                  {"trigger_id": ['cathode', 'channel', 'cross_sectional_shape'],
+                                   "trigger_cond": ['rectangular','triangular'], "action":'disable'}]}
+
+    row4: {name: "Additional row", inputfield_type: "Checkbox",
+        sim_name: [['settings','add_rows']],
+        unit: ""}
+
+    row5: {name: "... here it is",
+            sim_name: [[ 'add_rows',"A"], [ 'add_rows',"B"]],
+            unit: "",
+            condition_behaviour: {"trigger_id":['settings','add_rows'], "trigger_cond":[False],
+                                  "action":"collapse"}}
+
+    row6: {name: "... even more",
+            sim_name: [ [ 'add_rows',"C"],[ 'add_rows',"D"] ],
+            unit: "",
+            condition_behaviour: {"trigger_id": [ 'settings','add_rows' ], "trigger_cond":[False],
+                                   "action": "collapse"}}
+
+
+
+tab2:
+  title: "Manifolds"
+  block1:
+
+    row1: {name: "Activate Calculation", inputfield_type: "Checkbox",
+           sim_name: [['anode', 'flow_circuit', 'calc_distribution'],
+                      ['cathode', 'flow_circuit', 'calc_distribution'],
+                      ['coolant_flow_circuit', 'calc_distribution']], unit: "" }
+
+    row2:  {name: "Flow Configuration", inputfield_type: "Dropdown",
+            values: ['U', 'Z'],
+            sim_name: [['anode', 'flow_circuit', 'shape'],
+                      ['cathode', 'flow_circuit', 'shape'],
+                      ['coolant_flow_circuit', 'shape']],unit: ""}
+  block2:
+
+    title: "Inlet Manifold"
+
+    row1: {name: "Cross-Section", inputfield_type: "Dropdown",
+            values: [ 'circular', 'rectangular' ],
+            sim_name: [['anode', 'flow_circuit', 'inlet_manifold',
+                   'cross_sectional_shape'],
+                    ['cathode', 'flow_circuit', 'inlet_manifold',
+                     'cross_sectional_shape'],
+                    ['coolant_flow_circuit', 'inlet_manifold',
+                     'cross_sectional_shape']],unit: ""}
+
+    row2: {name: "Diameter", sim_name: [['anode', 'flow_circuit', 'inlet_manifold', 'diameter'],
+                  ['cathode', 'flow_circuit', 'inlet_manifold', 'diameter'],
+                  ['coolant_flow_circuit', 'inlet_manifold', 'diameter']],
+            unit: "m"}
+
+    row3: {name: "Width", sim_name: [['anode', 'flow_circuit', 'inlet_manifold', 'width'],
+                  ['cathode', 'flow_circuit', 'inlet_manifold', 'width'],
+                  ['coolant_flow_circuit', 'inlet_manifold', 'width']],
+            unit: "m"}
+
+  condition_behaviour: [{"trigger_id":['anode', 'flow_circuit', 'calc_distribution'], "trigger_cond":[False],
+                          "target_ids":[['anode', 'flow_circuit', 'shape'],
+                            ['anode', 'flow_circuit', 'inlet_manifold','cross_sectional_shape'],
+                            ['anode', 'flow_circuit', 'inlet_manifold', 'diameter'],
+                            ['anode', 'flow_circuit', 'inlet_manifold', 'width']],"action":'disable'},
+                        {"trigger_id": ['cathode', 'flow_circuit', 'calc_distribution'], "trigger_cond": [False],
+                          "target_ids": [['cathode', 'flow_circuit', 'shape'],
+                                        ['cathode', 'flow_circuit', 'inlet_manifold','cross_sectional_shape'],
+                                        ['cathode', 'flow_circuit', 'inlet_manifold', 'diameter'],
+                                        ['cathode', 'flow_circuit', 'inlet_manifold', 'width']],"action": 'disable'},
+                        {"trigger_id": ['coolant_flow_circuit', 'calc_distribution'], "trigger_cond": [False],
+                          "target_ids": [['coolant_flow_circuit', 'shape'],
+                                          ['coolant_flow_circuit', 'inlet_manifold','cross_sectional_shape'],
+                                          ['coolant_flow_circuit', 'inlet_manifold', 'diameter'],
+                                          ['coolant_flow_circuit', 'inlet_manifold', 'width']],"action": 'disable'},
+                        {"trigger_id":['anode', 'flow_circuit', 'inlet_manifold','cross_sectional_shape'],
+                          "trigger_cond":["rectangular"], "target_ids":['anode', 'flow_circuit', 'inlet_manifold', 'diameter'],
+                        "action": 'disable'},
+                        {"trigger_id": ['cathode', 'flow_circuit', 'inlet_manifold','cross_sectional_shape'],
+                          "trigger_cond": ["rectangular"], "target_ids": ['cathode', 'flow_circuit', 'inlet_manifold', 'diameter'],
+                          "action": 'disable'},
+                        {"trigger_id": ['coolant_flow_circuit', 'inlet_manifold','cross_sectional_shape'],
+                          "trigger_cond": ["rectangular"], "target_ids": ['coolant_flow_circuit', 'inlet_manifold', 'diameter'],
+                          "action": 'disable'}]
+
+tab3:
+  title: "Physical Properties"
+  block1:
+    title: "Porous Layers"
+    column_headers: ["Anode","Cathode"]
+    column_headers2: ["ip","tp","ip","tp"]
+    row1: {name: "BPP Electrical Conductivity",
+            sim_name: [[ 'anode', 'bpp', 'electrical_conductivity','0'],
+                        [ 'anode', 'bpp', 'electrical_conductivity','1'],
+                        [ 'cathode', 'bpp', 'electrical_conductivity','0'],
+                          [ 'cathode', 'bpp', 'electrical_conductivity','1']],unit: "S/m" }
+    row2: {name: "GDL & CL Porosity",
+              sim_name:[['anode', 'gde', 'porosity'], ['cathode', 'gde', 'porosity']], unit: "-"}
+
+
+
+
+
+
