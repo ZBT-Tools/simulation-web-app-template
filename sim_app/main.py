@@ -122,9 +122,9 @@ app.layout = dbc.Container([
     html.Div([  # MIDDLE
         html.Div([  # LEFT MIDDLE / (Menu Column)
             # Menu Tabs
-            html.Div([
-                dl.tab_container(parameters_layout)],
-                id='setting_container'),
+            # html.Div([
+            #     dl.tab_container(parameters_layout)],
+            #     id='setting_container'),
 
             # Add new input
             html.Div([gui_settings],
@@ -453,8 +453,6 @@ def cbf_progress_bar(*args) -> (float, str):
 
 
 @app.callback(
-    # Output({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
-    # Output({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
     Output({'type': 'new_input', 'sim_id': ALL}, 'value'),
     Output("base_settings_data", "data"),
     Output('df_input_store', 'data'),
@@ -465,6 +463,7 @@ def cbf_initialization(dummy, gui_value_list: list):
     """
     Initialization
     """
+
     # Read default settings.json file from sim_base_dir & local settings.json
     # --------------------------------------
     try:
@@ -474,7 +473,7 @@ def cbf_initialization(dummy, gui_value_list: list):
         sim_base_dir = '.'
         with open(os.path.join(sim_base_dir, 'settings', 'settings.json')) as file:
             base_settings = json.load(file)
-            base_settings = df.storage_format_data(base_settings)
+            base_settings = df.convert_to_storage_format(base_settings)
     except Exception as E:
         print(repr(E))
 
@@ -489,18 +488,23 @@ def cbf_initialization(dummy, gui_value_list: list):
     settings_file_dict, _ = df.settings_to_dash_gui(input_settings)
 
     # From input field to simulation structure...
+    # --------------------------------------
     gui_settings_dict = df.convert_gui_state_to_sim_dict(ctx.states_list[0])
 
     # Update gui_settings data with default settings
     # --------------------------------------
     initialized_gui_settings_dict = df.update_gui_settings_dict(settings_file_dict,
-                                                                  gui_settings_dict)
+                                                                gui_settings_dict)
+
+    # And back from simulation structure to gui input field list...
+    # --------------------------------------
+    gui_return_value_list = df.convert_sim_dict_to_state_value_list(initialized_gui_settings_dict,
+                                                                    ctx.states_list[0])
 
     # Save initial data in input DataDrame
     # --------------------------------------
     # Save initialized input data in DataFrame
     # (one row "nominal")
-
     df_input = df.convert_gui_settings_to_DataFrame(initialized_gui_settings_dict)
     df_input_store = df.convert_to_storage_format(df_input)
 
@@ -551,25 +555,20 @@ def cbf_initialization(dummy, gui_value_list: list):
         style_table={'height': '300px', 'overflowY': 'auto'}
     )
 
-    return new_value_list, base_settings, df_input_store, table
+    return gui_return_value_list, base_settings, df_input_store, table
 
 
 @app.callback(
-    [Output({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
-     Output({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
+    [Output({'type': 'new_input', 'sim_id': ALL}, 'value'),
      Output('upload-file', 'contents'),
      Output('modal-title', 'children'),
      Output('modal-body', 'children'),
      Output('modal', 'is_open')],
     Input('upload-file', 'contents'),
     [State('upload-file', 'filename'),
-     State({'type': 'input', 'id': ALL, 'specifier': ALL}, 'value'),
-     State({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'value'),
-     State({'type': 'input', 'id': ALL, 'specifier': ALL}, 'id'),
-     State({'type': 'multiinput', 'id': ALL, 'specifier': ALL}, 'id'),
-     State('modal', 'is_open')]
-)
-def cbf_load_settings(contents, filename, value, multival, ids, ids_multival,
+     State({'type': 'new_input', 'sim_id': ALL}, 'value'),
+     State('modal', 'is_open')])
+def cbf_load_settings(contents, filename, gui_value_list,
                       modal_state):
     if contents is None:
         raise PreventUpdate
@@ -578,8 +577,9 @@ def cbf_load_settings(contents, filename, value, multival, ids, ids_multival,
             try:
                 settings_dict = df.parse_contents(contents, filename,
                                                   dtype=dict)
+
                 gui_label_value_dict, error_list = \
-                    df.settings_to_dash_gui(settings_dict)
+                    df.settings_to_dash_gui_format(settings_dict)
 
                 new_value_list, new_multivalue_list = \
                     df.update_gui_lists(gui_label_value_dict,
@@ -706,8 +706,8 @@ def cbf_run_single_cal(n_click, inputs, inputs2, ids, ids2, settings):
         df_result, _ = df.run_simulation(df_input)
 
         # Save results
-        df_result_store = df.store_data(df_result)
-        df_input_store = df.store_data(df_input_raw)
+        df_result_store = df.convert_to_storage_format(df_result)
+        df_input_store = df.convert_to_storage_format(df_input_raw)
 
         return df_result_store, df_input_store, ""
 
@@ -796,7 +796,7 @@ def cbf_run_study(btn, inputs, inputs2, ids, ids2, settings, tabledata,
         data = create_settings(data, settings, input_cols=df_input.columns)
         # Run Simulation
         results, success = df.run_simulation(data)
-        results = df.store_data(results)
+        results = df.convert_to_storage_format(results)
 
     else:  # ... calculate pol. curve for each parameter set
         result_data = pd.DataFrame(columns=data.columns)
@@ -1369,10 +1369,10 @@ def visibility(inputs, options):
 
 
 @app.callback(
-    Output({"type": "input", "sim_id": ALL}, "disabled"),
+    Output({"type": "new_input", "sim_id": ALL}, "disabled"),
     Output({"type": "collapse_row", "name": ALL}, "is_open"),
-    Input({"type": "input", "sim_id": ALL}, "value"),
-    State({"type": "input", "sim_id": ALL}, "disabled"),
+    Input({"type": "new_input", "sim_id": ALL}, "value"),
+    State({"type": "new_input", "sim_id": ALL}, "disabled"),
     State({"type": "collapse_row", "name": ALL}, "is_open")
 )
 def cbf_gui_conditions(inp, state, state2):
@@ -1405,17 +1405,17 @@ def cbf_gui_conditions(inp, state, state2):
 
             if action_type == "disable":
                 for trig_id, trigg_data in cond.items():
-                    trigger_state = ctx.inputs[f'{{"sim_id":"{trig_id}","type":"input"}}.value']
+                    trigger_state = ctx.inputs[f'{{"sim_id":"{trig_id}","type":"new_input"}}.value']
                     if trigger_state is None:
                         trigger_state = False
                     if trigger_state in trigg_data["values"]:
                         trigger = True
 
-                disabled_states[f'{{"sim_id":"{targ_id}","type":"input"}}.disabled'] = trigger
+                disabled_states[f'{{"sim_id":"{targ_id}","type":"new_input"}}.disabled'] = trigger
 
             elif action_type == "collapse":
                 for trig_id, trigg_data in cond.items():
-                    trigger_state = ctx.inputs[f'{{"sim_id":"{trig_id}","type":"input"}}.value']
+                    trigger_state = ctx.inputs[f'{{"sim_id":"{trig_id}","type":"new_input"}}.value']
                     if trigger_state is None:
                         trigger_state = False
                     if trigger_state in trigg_data["values"]:

@@ -119,33 +119,25 @@ def convert_gui_state_to_sim_dict(gui_state: list) -> dict:
 
     return gui_dict
 
-def convert_sim_dict_to_state_value_list(sim_dict: dict, state_list:list) -> list:
-    # Undo combination of multi input keys
-    # Combine values to lists for suffix "-0", "-1","-n", identifying belonging togehter values
+def convert_sim_dict_to_state_value_list(sim_dict: dict, state_list: list) -> list:
+    """
+    Undo combination of values to lists for suffix "-0", "-1","-n",
+    identifying togehter belonging values
+    return values in list, order defined by state_list
+    """
+
     gui_dict = {}
-    for k,v in sim_dict:
-        if isinstance(v,list):
-
-
-
-    for gui_id, gui_val in zip(gui_ids, gui_vals):
-        # Check 'multi-input'
-        if gui_id[-1].isdigit() and gui_id[-2] == "-":
-            # Check if name is available
-            sim_name = gui_id[:-2]
-            if sim_name in gui_dict:
-                # Add value to list
-                gui_dict[sim_name].append(gui_val)
-            else:
-                # create entry
-                gui_dict[sim_name] = [gui_val]
+    for k, v in sim_dict.items():
+        if isinstance(v, list):
+            for n, le in enumerate(v):
+                gui_dict[f"{k}-{n}"] = le
         else:
-            sim_name = gui_id
-            gui_dict[sim_name] = gui_val
+            gui_dict[k] = v
 
-    return gui_dict
+    gui_id_list = [el['id']['sim_id'] for el in state_list]
+    value_list = [gui_dict[le] for le in gui_id_list]
 
-
+    return value_list
 
 def create_settings(df_data: pd.DataFrame, settings,
                     input_cols=None) -> pd.DataFrame:
@@ -169,6 +161,7 @@ def create_settings(df_data: pd.DataFrame, settings,
         lambda row: {i: {'sim_name': i.split('-'), 'value': v}
                      for i, v in zip(row.index, row.values)}, axis=1)
 
+    # ToDO: continue here FKL
     df_temp['settings'] = df_temp['input_data'].apply(
         lambda x: data_transfer.dict_transfer(x, settings)[0])
     data = df_data.join(df_temp)
@@ -264,7 +257,7 @@ def parse_contents(
                             ' or Python Dictionary')
 
 
-def settings_to_dash_gui(settings: dict) -> (dict, list):
+def settings_to_dash_gui_format(settings: dict) -> (dict, list):
     """
     Convert settings from the hierarchical simulation input dictionary to
     a dictionary for the gui input combining all hierarchical keys to a single
@@ -273,11 +266,12 @@ def settings_to_dash_gui(settings: dict) -> (dict, list):
     input: settings_dict = {'stack': {'cathode': {'channel': {'length': 0.5}}}}
     return: gui_dict = {'stack-cathode-channel-length': 0.5}
     """
-    name_lists = [ids['id'].split('-') if ids['id'][-1:].isnumeric() is False
-                  else ids['id'][:-2].split('-') for ids in dl.ID_LIST]
+    #name_lists = [ids['id'].split('-') if ids['id'][-1:].isnumeric() is False
+    #              else ids['id'][:-2].split('-') for ids in dl.ID_LIST]
     error_list = []
     gui_dict = {}
-    for n in name_lists:
+    for k,v in settings.items():
+
         name_id = '-'.join(n)
         try:
             gui_dict.update({name_id: glom(settings, '.'.join(n))})
